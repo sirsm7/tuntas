@@ -611,7 +611,12 @@ function muatLogoPPD() {
             canvas.height = img.height;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0);
-            resolve(canvas.toDataURL('image/png'));
+            // Kembalikan base64 beserta saiz asal imej untuk pengiraan aspect ratio
+            resolve({
+                base64: canvas.toDataURL('image/png'),
+                width: img.width,
+                height: img.height
+            });
         };
         img.onerror = () => {
             resolve(null); // Jika gagal, teruskan tanpa logo
@@ -635,6 +640,7 @@ async function janaDokumenPDF() {
         const doc = new jsPDF('p', 'mm', 'a4');
         const pageWidth = doc.internal.pageSize.getWidth();
         const pageHeight = doc.internal.pageSize.getHeight();
+        let currentY = 30; // Penjejak koordinat Y secara dinamik
 
         const centerText = (text, y, size = 12, isBold = false) => {
             doc.setFontSize(size);
@@ -645,35 +651,65 @@ async function janaDokumenPDF() {
         };
 
         // 1. MUKA HADAPAN (FRONT PAGE)
-        const logoBase64 = await muatLogoPPD();
-        if (logoBase64) {
-            doc.addImage(logoBase64, 'PNG', (pageWidth - 40) / 2, 30, 40, 40);
+        const logoData = await muatLogoPPD();
+        if (logoData && logoData.base64) {
+            const targetWidth = 60; // Lebar tetap logo
+            const aspectRatio = logoData.height / logoData.width;
+            const targetHeight = targetWidth * aspectRatio; // Ketinggian proporsional
+            
+            doc.addImage(logoData.base64, 'PNG', (pageWidth - targetWidth) / 2, currentY, targetWidth, targetHeight);
+            currentY += targetHeight + 10;
+        } else {
+            currentY += 40; // Jika logo gagal muat, terus sediakan ruang kosong
         }
 
-        centerText("KEMENTERIAN PENDIDIKAN MALAYSIA", 80, 14, true);
-        centerText("PEJABAT PENDIDIKAN DAERAH", 88, 14, true);
+        // Teks Pengenalan Rasmi di bawah logo (Auto-adjusted Y)
+        centerText("KEMENTERIAN PENDIDIKAN", currentY, 14, true);
+        currentY += 8;
+        centerText("PEJABAT PENDIDIKAN DAERAH ALOR GAJAH", currentY, 14, true);
+        currentY += 12;
 
         doc.setDrawColor(200, 200, 200);
-        doc.line(20, 100, pageWidth - 20, 100);
+        doc.line(20, currentY, pageWidth - 20, currentY);
+        currentY += 15;
 
-        centerText("LAPORAN PENILAIAN KENDIRI TUNTAS", 115, 18, true);
+        centerText("LAPORAN PENILAIAN KENDIRI TUNTAS", currentY, 18, true);
+        currentY += 20;
         
-        doc.setTextColor(30, 64, 175); // Blue
-        centerText(laporanSemasaData.namaSekolah, 135, 14, true);
+        doc.setTextColor(30, 64, 175); // Warna Biru
+        centerText(laporanSemasaData.namaSekolah, currentY, 14, true);
+        currentY += 10;
         
-        doc.setTextColor(0, 0, 0); // Black
-        centerText(`KOD SEKOLAH: ${laporanSemasaData.kodSekolah}`, 145, 12, false);
+        doc.setTextColor(0, 0, 0); // Warna Hitam
+        centerText(`KOD SEKOLAH: ${laporanSemasaData.kodSekolah}`, currentY, 12, false);
+        currentY += 10;
 
         const dateObj = new Date(laporanSemasaData.timestamp);
-        centerText(`Tarikh Kemas Kini: ${dateObj.toLocaleString('ms-MY')}`, 155, 10, false);
+        centerText(`Tarikh Kemas Kini: ${dateObj.toLocaleString('ms-MY')}`, currentY, 10, false);
+        currentY += 20;
 
+        // Pemprosesan Rumusan Panjang (Word-wrap & Pagination)
         if (laporanSemasaData.rumusan) {
             doc.setFontSize(11);
             doc.setFont("helvetica", "bold");
-            doc.text("RUMUSAN ADMIN:", 20, 180);
+            doc.text("RUMUSAN ADMIN:", 20, currentY);
+            currentY += 10;
+            
             doc.setFont("helvetica", "normal");
+            
+            // Menggunakan fungsi jsPDF terbina untuk memisahkan teks mengikut lebar muka surat
+            // Ia juga akan mengesan watak baris baharu (\n) secara lalai.
             const splitRumusan = doc.splitTextToSize(laporanSemasaData.rumusan, pageWidth - 40);
-            doc.text(splitRumusan, 20, 190);
+            
+            // Loop untuk mencetak baris demi baris, dan menambah page jika ruang tidak cukup
+            splitRumusan.forEach(baris => {
+                if (currentY > pageHeight - 20) {
+                    doc.addPage();
+                    currentY = 20; // Reset ke ruang atas muka surat baharu
+                }
+                doc.text(baris, 20, currentY);
+                currentY += 6; // Jarak line height
+            });
         }
 
         // 2. RENDERING CARTA (HIDDEN CANVAS) & PENAMBAHAN MUKA SURAT
@@ -743,7 +779,7 @@ async function janaDokumenPDF() {
             doc.text("PERINCIAN SKOR:", 15, 140);
 
             doc.setFont("helvetica", "normal");
-            let yPos = 148;
+            let yPosScores = 148;
             komponen.items.forEach((item) => {
                 const skor = laporanSemasaData.scores[item.id] || 0;
                 
@@ -756,13 +792,13 @@ async function janaDokumenPDF() {
                 const splitText = doc.splitTextToSize(textStr, pageWidth - 30);
 
                 // Jika teks melebihi ruang bawah, tambah muka surat baharu
-                if (yPos + (splitText.length * 5) > pageHeight - 15) {
+                if (yPosScores + (splitText.length * 5) > pageHeight - 15) {
                     doc.addPage();
-                    yPos = 20;
+                    yPosScores = 20;
                 }
 
-                doc.text(splitText, 15, yPos);
-                yPos += (splitText.length * 5) + 3; // Jarak ruang per item
+                doc.text(splitText, 15, yPosScores);
+                yPosScores += (splitText.length * 5) + 3; // Jarak ruang per item
             });
         }
 
