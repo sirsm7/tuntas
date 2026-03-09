@@ -28,7 +28,6 @@ function showToast(message, type = 'success') {
 
 // Pembolehubah Global (State)
 let currentStep = 0;
-// FIX: Membuang pengisytiharan semula 'const strukturBimbingan' untuk elak ralat syntax.
 // Merujuk terus kepada objek global yang dijana oleh data.js.
 const totalSteps = window.strukturBimbingan.length + 1; // 1 Langkah Info + 11 Langkah Komponen
 let bimbinganChart = null;
@@ -55,11 +54,15 @@ function ikatEventListerSistem() {
     document.getElementById('btn-tab-form').addEventListener('click', () => switchTab('form'));
     document.getElementById('btn-tab-report').addEventListener('click', () => switchTab('report'));
 
-    // 2. Navigasi Borang (Next, Prev, Submit)
+    // 2. Navigasi Borang (Next, Prev, Submit, Quick Nav)
     document.getElementById('btn-prev').addEventListener('click', () => navigateStep(-1));
     document.getElementById('btn-next').addEventListener('click', () => navigateStep(1));
     document.getElementById('btn-quick-save').addEventListener('click', (e) => handleFormSubmit(e, true));
     document.getElementById('bimbinganForm').addEventListener('submit', (e) => handleFormSubmit(e, false));
+    
+    // PEMBAIKAN: Ikat butang INFO untuk kembali ke tab awal
+    const btnInfo = document.getElementById('nav-step-0');
+    if (btnInfo) btnInfo.addEventListener('click', () => lompatKeLangkah(0));
     
     // Kemas kini status navigasi atas apabila radio ditekan
     document.getElementById('bimbinganForm').addEventListener('change', kemaskiniStatusNavigasi);
@@ -200,7 +203,7 @@ function janaBorangDinamik() {
 
 function janaNavigasiPantas() {
     const navContainer = document.getElementById('quick-nav');
-    // Button INFO sudah ada, kita tambah button untuk komponen A-K
+    // Button INFO sudah ada di HTML, kita tambah button untuk komponen A-K
     window.strukturBimbingan.forEach((komponen, index) => {
         const stepIdx = index + 1;
         const btn = document.createElement('button');
@@ -219,7 +222,7 @@ function janaNavigasiPantas() {
  * ==========================================
  */
 function lompatKeLangkah(n) {
-    // Validasi INFO Sekolah sebelum melompat
+    // Validasi INFO Sekolah sebelum melompat ke tab lain (selain tab 0)
     if (n > 0) {
         const kod = document.getElementById('kodSekolah').value.trim();
         const nama = document.getElementById('namaSekolah').value.trim();
@@ -571,7 +574,7 @@ function kemasKiniCarta() {
 
 /**
  * ==========================================
- * LOGIK MODAL ADMIN PPD
+ * LOGIK MODAL ADMIN PPD & SESSION CACHING
  * ==========================================
  */
 function bukaModalAdmin() {
@@ -580,12 +583,58 @@ function bukaModalAdmin() {
         showToast("Sila masukkan teks rumusan terlebih dahulu.", "error");
         return;
     }
+
+    // PENGOPTIMUMAN: Semak sekiranya sesi Admin telah disahkan sebelum ini
+    if (sessionStorage.getItem('tuntas_admin_verified') === 'true') {
+        // Abaikan modal, terus panggil API untuk mengemas kini data
+        laksanaKemasKiniSegera(teks);
+        return;
+    }
+
+    // Jika sesi belum wujud, tunjukkan modal pengesahan seperti biasa
     document.getElementById('inputPassAdmin').value = '';
     document.getElementById('modalAdminAuth').classList.remove('hidden');
 }
 
 function tutupModalAdmin() {
     document.getElementById('modalAdminAuth').classList.add('hidden');
+}
+
+/**
+ * Logik pintasan apabila sesi disahkan.
+ */
+async function laksanaKemasKiniSegera(rumusanTeks) {
+    if (!laporanSemasaData || !laporanSemasaData.kodSekolah) {
+        showToast("Ralat Kod Sekolah. Sila jana laporan semula.", "error");
+        return;
+    }
+
+    const btn = document.getElementById('btnRumusanAdmin');
+    const loader = document.getElementById('adminLoader');
+    
+    btn.disabled = true;
+    if (loader) loader.classList.remove('hidden');
+
+    // Menghantar kata laluan dari global config secara tersembunyi
+    const respon = await window.API.kemaskiniRumusanAdmin(
+        laporanSemasaData.kodSekolah, 
+        rumusanTeks, 
+        window.ADMIN_EMAIL, 
+        window.ADMIN_PASSWORD_FALLBACK
+    );
+
+    btn.disabled = false;
+    if (loader) loader.classList.add('hidden');
+
+    if (respon.status === 'success') {
+        showToast("Rumusan dikemas kini (Sesi Aktif)", 'success');
+        // Kemas kini data lokal agar kekal segerak
+        laporanSemasaData.rumusan = rumusanTeks;
+    } else {
+        showToast(respon.message, 'error');
+        // Jika gagal (contoh: ralat server), luputkan sesi cache sebagai langkah keselamatan
+        sessionStorage.removeItem('tuntas_admin_verified');
+    }
 }
 
 async function hantarKemasKiniRumusanAdmin() {
@@ -628,6 +677,9 @@ async function hantarKemasKiniRumusanAdmin() {
         showToast(respon.message, 'success');
         // Kemas kini data lokal agar kekal segerak
         laporanSemasaData.rumusan = rumusanTeks;
+        
+        // PENGOPTIMUMAN: Simpan cache sesi pengesahan untuk tetingkap aktif
+        sessionStorage.setItem('tuntas_admin_verified', 'true');
     } else {
         showToast(respon.message, 'error');
     }
