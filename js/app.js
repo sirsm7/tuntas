@@ -1,9 +1,9 @@
 /**
  * ============================================================================
- * BIMBINGAN PROGRAM TUNTAS - LOGIK APLIKASI (UI & EVENTS) V8
+ * BIMBINGAN PROGRAM TUNTAS - LOGIK APLIKASI (UI & EVENTS) V8 (Eksport PDF)
  * Pengarang: 0.1% Elite Senior Software Architect
- * Keterangan: Mengawal manipulasi DOM, navigasi, validasi, carta, dan sesi admin.
- * Kemaskini V8: Sokongan 48 Item Bimbingan.
+ * Keterangan: Mengawal manipulasi DOM, navigasi, validasi, carta, sesi admin,
+ * dan penjanaan pelaporan PDF berbilang muka surat.
  * ============================================================================
  */
 
@@ -85,26 +85,20 @@ function ikatEventListerSistem() {
     // 4. Reset Borang
     document.getElementById('btn-reset-borang').addEventListener('click', resetBorangKeseluruhan);
 
-    // 5. Laporan - Carian & Jana & Auto-populate
-    const searchInput = document.getElementById('searchKodSekolahInput');
-    searchInput.addEventListener('input', (e) => {
-        e.target.value = e.target.value.toUpperCase();
-        kawalCarianAutokomplet(e.target.value, 'searchKodSekolahSuggestions', pilihSekolahLaporan);
-    });
-    searchInput.addEventListener('blur', () => {
-        setTimeout(() => document.getElementById('searchKodSekolahSuggestions').classList.add('hidden'), 200);
-    });
-    
-    document.getElementById('searchBtn').addEventListener('click', laksanakanJanaanLaporan);
-    document.getElementById('filterKomponen').addEventListener('change', kemasKiniCarta);
-    
-    // Dropdown senarai sekolah dinilai
+    // 5. Laporan - Pilihan Sekolah & Eksport PDF
     document.getElementById('selectSekolahDinilai').addEventListener('change', (e) => {
         if(e.target.value) {
-            document.getElementById('searchKodSekolahInput').value = e.target.value;
-            laksanakanJanaanLaporan(); // Terus jana laporan jika pengguna memilih dari senarai
+            laksanakanJanaanLaporan(e.target.value);
+        } else {
+            document.getElementById('reportContainer').classList.add('hidden');
+            document.getElementById('emptyStateContainer').classList.remove('hidden');
+            document.getElementById('btnExportPDF').classList.add('hidden');
         }
     });
+
+    document.getElementById('filterKomponen').addEventListener('change', kemasKiniCarta);
+    
+    document.getElementById('btnExportPDF').addEventListener('click', janaDokumenPDF);
 
     // 6. Pengurusan Admin (Login, Logout, Kemas Kini, Padam)
     document.getElementById('btn-admin-auth-nav').addEventListener('click', kawalSesiAdmin);
@@ -160,11 +154,6 @@ function pilihSekolahBorang(sekolah) {
     document.getElementById('namaSekolah').value = sekolah.nama_sekolah;
     document.getElementById('kodSekolahSuggestions').classList.add('hidden');
     semakDataTerdahuluBorang(sekolah.kod_sekolah);
-}
-
-function pilihSekolahLaporan(sekolah) {
-    document.getElementById('searchKodSekolahInput').value = sekolah.kod_sekolah;
-    document.getElementById('searchKodSekolahSuggestions').classList.add('hidden');
 }
 
 /**
@@ -463,7 +452,7 @@ function kosongkanSemuaRadio() {
 
 /**
  * ==========================================
- * LOGIK PELAPORAN & CARTA KOMPREHENSIF
+ * LOGIK PELAPORAN, CARTA & PENJANAAN PDF
  * ==========================================
  */
 async function muatTurunSenaraiDinilai() {
@@ -503,33 +492,28 @@ function janaDropdownPenapisLaporan() {
     });
 }
 
-async function laksanakanJanaanLaporan() {
-    const searchInput = document.getElementById('searchKodSekolahInput').value.trim();
-    if (!searchInput) {
-        showToast("Sila masukkan Kod Sekolah untuk dijana.", 'error');
-        return;
-    }
+async function laksanakanJanaanLaporan(kodSekolah) {
+    if (!kodSekolah) return;
 
-    const searchBtn = document.getElementById('searchBtn');
-    const loader = document.getElementById('searchBtnLoader');
-    
-    searchBtn.disabled = true; 
-    loader.classList.remove('hidden');
+    const selectEl = document.getElementById('selectSekolahDinilai');
+    selectEl.disabled = true;
+    showToast("Mengekstrak data sekolah...", "info");
 
-    const respon = await window.API.dapatkanDataPelaporan(searchInput);
+    const respon = await window.API.dapatkanDataPelaporan(kodSekolah);
 
-    searchBtn.disabled = false; 
-    loader.classList.add('hidden');
+    selectEl.disabled = false;
 
     if (respon.status === 'success') {
         laporanSemasaData = respon.data;
         paparAntaramukaPelaporan();
         kemasKiniCarta();
-        showToast("Laporan berjaya dijana.", "success");
+        document.getElementById('btnExportPDF').classList.remove('hidden');
+        showToast("Pelaporan berjaya dimuatkan.", "success");
     } else {
         showToast(respon.message, 'error');
         document.getElementById('reportContainer').classList.add('hidden');
         document.getElementById('emptyStateContainer').classList.remove('hidden');
+        document.getElementById('btnExportPDF').classList.add('hidden');
     }
 }
 
@@ -548,7 +532,7 @@ function paparAntaramukaPelaporan() {
 }
 
 function wrapTextChart(text, maxLength) {
-    // Kita bersihkan tag HTML sebelum proses word wrap untuk elak ralat dalam carta
+    // Bersihkan tag HTML sebelum proses word wrap untuk elak ralat dalam carta / PDF
     const div = document.createElement("div");
     div.innerHTML = text;
     const plainText = div.textContent || div.innerText || "";
@@ -609,6 +593,191 @@ function kemasKiniCarta() {
             plugins: { legend: { display: false } }
         }
     });
+}
+
+/**
+ * ==========================================
+ * SISTEM PENJANAAN PDF (OFF-SCREEN RENDERING)
+ * ==========================================
+ */
+function muatLogoPPD() {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = 'Anonymous';
+        img.src = 'icoppdag.png';
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = () => {
+            resolve(null); // Jika gagal, teruskan tanpa logo
+        };
+    });
+}
+
+async function janaDokumenPDF() {
+    if (!laporanSemasaData) return;
+
+    const btn = document.getElementById('btnExportPDF');
+    const teksBtn = document.getElementById('teksBtnExportPDF');
+    const loader = document.getElementById('loaderExportPDF');
+
+    btn.disabled = true;
+    teksBtn.innerText = "Menjana PDF...";
+    loader.classList.remove('hidden');
+
+    try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+
+        const centerText = (text, y, size = 12, isBold = false) => {
+            doc.setFontSize(size);
+            doc.setFont("helvetica", isBold ? "bold" : "normal");
+            const textWidth = doc.getStringUnitWidth(text) * doc.internal.getFontSize() / doc.internal.scaleFactor;
+            const textOffset = (pageWidth - textWidth) / 2;
+            doc.text(text, textOffset, y);
+        };
+
+        // 1. MUKA HADAPAN (FRONT PAGE)
+        const logoBase64 = await muatLogoPPD();
+        if (logoBase64) {
+            doc.addImage(logoBase64, 'PNG', (pageWidth - 40) / 2, 30, 40, 40);
+        }
+
+        centerText("KEMENTERIAN PENDIDIKAN MALAYSIA", 80, 14, true);
+        centerText("PEJABAT PENDIDIKAN DAERAH", 88, 14, true);
+
+        doc.setDrawColor(200, 200, 200);
+        doc.line(20, 100, pageWidth - 20, 100);
+
+        centerText("LAPORAN PENILAIAN KENDIRI TUNTAS", 115, 18, true);
+        
+        doc.setTextColor(30, 64, 175); // Blue
+        centerText(laporanSemasaData.namaSekolah, 135, 14, true);
+        
+        doc.setTextColor(0, 0, 0); // Black
+        centerText(`KOD SEKOLAH: ${laporanSemasaData.kodSekolah}`, 145, 12, false);
+
+        const dateObj = new Date(laporanSemasaData.timestamp);
+        centerText(`Tarikh Kemas Kini: ${dateObj.toLocaleString('ms-MY')}`, 155, 10, false);
+
+        if (laporanSemasaData.rumusan) {
+            doc.setFontSize(11);
+            doc.setFont("helvetica", "bold");
+            doc.text("RUMUSAN ADMIN:", 20, 180);
+            doc.setFont("helvetica", "normal");
+            const splitRumusan = doc.splitTextToSize(laporanSemasaData.rumusan, pageWidth - 40);
+            doc.text(splitRumusan, 20, 190);
+        }
+
+        // 2. RENDERING CARTA (HIDDEN CANVAS) & PENAMBAHAN MUKA SURAT
+        const canvasEl = document.getElementById('pdfHiddenCanvas');
+        canvasEl.width = 800; // Tetapkan resolusi statik tinggi
+        canvasEl.height = 400;
+        const ctxHidden = canvasEl.getContext('2d');
+
+        for (let i = 0; i < window.strukturBimbingan.length; i++) {
+            const komponen = window.strukturBimbingan[i];
+            doc.addPage();
+
+            doc.setFontSize(14);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(30, 64, 175);
+            doc.text(komponen.tajuk, 15, 20);
+            doc.setTextColor(0, 0, 0);
+
+            const labels = [];
+            const scores = [];
+            komponen.items.forEach(item => {
+                labels.push(wrapTextChart(item.teks, 45)); 
+                scores.push(laporanSemasaData.scores[item.id] || 0);
+            });
+
+            const bgColors = scores.map(s =>
+                s === 1 ? 'rgba(239, 68, 68, 1)' :
+                s === 2 ? 'rgba(249, 115, 22, 1)' :
+                s === 3 ? 'rgba(34, 197, 94, 1)' :
+                'rgba(200, 200, 200, 1)'
+            );
+
+            // Bina carta tersembunyi tanpa animasi untuk rendering segera
+            const chartImageBase64 = await new Promise((resolve) => {
+                const tempChart = new Chart(ctxHidden, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{ label: 'Skor', data: scores, backgroundColor: bgColors, borderWidth: 1 }]
+                    },
+                    options: {
+                        animation: false, // Penting untuk elak canvas rendering kosong
+                        responsive: false,
+                        devicePixelRatio: 2, // Kualiti imej lebih tajam
+                        scales: {
+                            y: { beginAtZero: true, max: 3, ticks: { stepSize: 1, font: { weight: 'bold' } } },
+                            x: { ticks: { font: { size: 10, weight: 'bold' } } }
+                        },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+
+                // Ruang penampan masa singkat untuk proses rendering diselesaikan oleh GPU
+                setTimeout(() => {
+                    const base64 = tempChart.toBase64Image();
+                    tempChart.destroy();
+                    resolve(base64);
+                }, 150);
+            });
+
+            // Tampal Imej Carta
+            doc.addImage(chartImageBase64, 'PNG', 15, 30, pageWidth - 30, 100);
+
+            // Tampal Perincian Skor Teks di Bawah Carta
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "bold");
+            doc.text("PERINCIAN SKOR:", 15, 140);
+
+            doc.setFont("helvetica", "normal");
+            let yPos = 148;
+            komponen.items.forEach((item) => {
+                const skor = laporanSemasaData.scores[item.id] || 0;
+                
+                // Buang tag HTML (<br>, <div> dll) untuk teks PDF yang bersih
+                const div = document.createElement("div");
+                div.innerHTML = item.teks;
+                const plainText = div.textContent || div.innerText || "";
+                
+                const textStr = `${plainText} (Skor Semasa: ${skor})`;
+                const splitText = doc.splitTextToSize(textStr, pageWidth - 30);
+
+                // Jika teks melebihi ruang bawah, tambah muka surat baharu
+                if (yPos + (splitText.length * 5) > pageHeight - 15) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+
+                doc.text(splitText, 15, yPos);
+                yPos += (splitText.length * 5) + 3; // Jarak ruang per item
+            });
+        }
+
+        // Muat Turun Fail
+        doc.save(`Laporan_TUNTAS_${laporanSemasaData.kodSekolah}.pdf`);
+        showToast("PDF berjaya dimuat turun.", "success");
+
+    } catch (error) {
+        console.error('Ralat Penjanaan PDF:', error);
+        showToast("Gagal menjana PDF. Sila hubungi admin.", "error");
+    } finally {
+        btn.disabled = false;
+        teksBtn.innerText = "Eksport PDF";
+        loader.classList.add('hidden');
+    }
 }
 
 /**
@@ -793,7 +962,7 @@ function padamRekodSistem() {
                 showToast(respon.message, 'success');
                 document.getElementById('reportContainer').classList.add('hidden');
                 document.getElementById('emptyStateContainer').classList.remove('hidden');
-                document.getElementById('searchKodSekolahInput').value = '';
+                document.getElementById('btnExportPDF').classList.add('hidden');
                 document.getElementById('selectSekolahDinilai').value = '';
                 laporanSemasaData = null;
                 

@@ -3,17 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bimbingan Program Tuntas V7 (Pro Edition) - Supabase</title>
+    <title>Bimbingan Program Tuntas V8 (Pro Edition) - Supabase</title>
     
     <link rel="icon" href="icoppdag.png">
     
     <script src="https://cdn.tailwindcss.com"></script>
-    
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- Pustaka untuk Penjanaan PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
     <style>
         .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -46,7 +47,7 @@
                 <div class="flex items-center">
                     <img src="icoppdag.png" alt="Logo PPD" class="h-8 w-auto mr-2 drop-shadow-md">
                     <span class="font-bold text-lg md:text-xl tracking-wider uppercase hidden sm:block">Borang Penilaian Kendiri TUNTAS</span>
-                    <span class="font-bold text-lg tracking-wider uppercase sm:hidden">TUNTAS V7</span>
+                    <span class="font-bold text-lg tracking-wider uppercase sm:hidden">TUNTAS V8</span>
                 </div>
                 <div class="flex space-x-2 md:space-x-4 items-center">
                     <button id="btn-admin-auth-nav" class="px-3 py-2 rounded-md text-xs font-bold bg-amber-500 text-white hover:bg-amber-600 shadow-sm focus:outline-none transition-colors flex items-center">
@@ -157,7 +158,7 @@
             <div class="mb-6 border-b border-gray-200 pb-4 flex flex-col md:flex-row justify-between items-start md:items-center">
                 <div>
                     <h2 class="text-2xl font-bold text-gray-800">Pelaporan Bimbingan Komprehensif</h2>
-                    <p class="text-sm text-gray-500 mt-1">Sila jana pelaporan untuk melihat carta dan rumusan admin.</p>
+                    <p class="text-sm text-gray-500 mt-1">Pilih sekolah dari senarai untuk menjana carta dan mengeksport laporan dalam bentuk PDF.</p>
                 </div>
                 <div class="mt-2 md:mt-0 flex items-center text-sm font-semibold text-gray-600">
                     <span id="status-rekod-terkini" class="flex items-center">
@@ -167,22 +168,23 @@
                 </div>
             </div>
 
-            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6">
-                <label class="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wide">Pilihan Carian Sekolah (Telah Dinilai)</label>
-                <div class="flex flex-col md:flex-row gap-3">
-                    <div class="w-full md:w-1/2 relative">
-                        <select id="selectSekolahDinilai" class="w-full px-4 py-3 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-bold bg-white text-blue-800 shadow-sm cursor-pointer transition-colors hover:border-blue-400">
-                            <option value="">-- PILIH DARI SENARAI SEDIA ADA --</option>
-                        </select>
-                    </div>
-                    <div class="w-full md:w-1/2 relative flex shadow-sm">
-                        <input type="text" id="searchKodSekolahInput" class="w-full px-4 py-3 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 uppercase font-bold bg-white text-gray-800 border-r-0 placeholder-gray-400" placeholder="Atau Taip Kod / Nama Sekolah...">
-                        <ul id="searchKodSekolahSuggestions" class="absolute z-10 w-full bg-white border border-gray-300 rounded-lg mt-[3.2rem] max-h-48 overflow-y-auto hidden shadow-lg"></ul>
-                        <button type="button" id="searchBtn" class="flex-shrink-0 flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-r-lg transition-all border border-blue-600">
-                            <span id="searchBtnText">Jana</span>
-                            <div id="searchBtnLoader" class="loader ml-3 hidden border-white border-t-transparent w-4 h-4"></div>
-                        </button>
-                    </div>
+            <!-- Modified Search Block (Dropdown & Export PDF Button Only) -->
+            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6 flex flex-col md:flex-row gap-4 items-end">
+                <div class="w-full md:w-3/4">
+                    <label class="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wide">Pilihan Sekolah (Telah Dinilai)</label>
+                    <select id="selectSekolahDinilai" class="w-full px-4 py-3 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-bold bg-white text-blue-800 shadow-sm cursor-pointer transition-colors hover:border-blue-400">
+                        <option value="">-- PILIH DARI SENARAI SEDIA ADA --</option>
+                    </select>
+                </div>
+                <div class="w-full md:w-1/4">
+                    <!-- Butang Eksport PDF (Disembunyikan secara lalai, dipaparkan selepas data dijana) -->
+                    <button type="button" id="btnExportPDF" class="hidden w-full flex items-center justify-center bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all border border-red-600">
+                        <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span id="teksBtnExportPDF">Eksport PDF</span>
+                        <div id="loaderExportPDF" class="loader-small border-white border-t-transparent ml-2 hidden"></div>
+                    </button>
                 </div>
             </div>
 
@@ -252,12 +254,13 @@
                 <svg class="w-16 h-16 mb-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
-                <p class="text-lg font-medium text-gray-500">Tiada data dipaparkan. Sila cari sekolah dan klik 'Jana Pelaporan'.</p>
+                <p class="text-lg font-medium text-gray-500">Tiada data dipaparkan. Sila pilih sekolah dari senarai untuk menjana pelaporan.</p>
             </div>
         </section>
 
     </main>
 
+    <!-- Modal Admin Auth -->
     <div id="modalAdminAuth" class="fixed inset-0 bg-black/60 z-[100] hidden flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 transform transition-all">
             <div class="flex justify-between items-center mb-2">
@@ -296,10 +299,15 @@
         </div>
     </div>
 
+    <!-- Container tersembunyi (off-screen) untuk menjana imej carta PDF bagi setiap komponen -->
+    <div id="pdfOffscreenContainer" class="fixed -left-[9999px] top-0 bg-white p-8 w-[1000px] h-[600px] z-[-1]">
+        <canvas id="pdfHiddenCanvas"></canvas>
+    </div>
+
     <footer class="bg-white border-t border-gray-200 mt-auto">
         <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
             <p class="text-center text-sm text-gray-500 font-medium tracking-wide">
-                &copy; 2026 Program Tuntas V7. Sistem Bimbingan Pintar (Supabase Edition).
+                &copy; 2026 Program Tuntas V8. Sistem Bimbingan Pintar (Supabase Edition).
             </p>
         </div>
     </footer>
