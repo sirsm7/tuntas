@@ -105,6 +105,27 @@ const API = {
     },
 
     /**
+     * Mendapatkan senarai sekolah yang TELAH DINILAI dari jadual tuntas_bimbingan
+     * Digunakan untuk ciri auto-populate di bahagian Pelaporan
+     * @returns {Promise<Object>} Status dan senarai sekolah yang dinilai
+     */
+    dapatkanSenaraiTelahDinilai: async function() {
+        try {
+            const { data, error } = await dbClient
+                .from('tuntas_bimbingan')
+                .select('kod_sekolah, nama_sekolah')
+                .order('nama_sekolah', { ascending: true });
+
+            if (error) throw error;
+
+            return { status: 'success', data: data || [] };
+        } catch (error) {
+            console.error('Ralat API dapatkanSenaraiTelahDinilai:', error);
+            return { status: 'error', message: 'Gagal memuat turun senarai sekolah yang telah dinilai.' };
+        }
+    },
+
+    /**
      * Mendapatkan data pelaporan berdasarkan Kod Sekolah
      * @param {string} kodSekolah - Kod sekolah untuk carian spesifik
      * @returns {Promise<Object>} Status dan data untuk penjanaan laporan/carta
@@ -158,7 +179,7 @@ const API = {
             // Kemas kini hanya lajur 'rumusan' dan tarikh ubah suai akan terpicu secara automatik oleh trigger DB
             const { error } = await dbClient
                 .from('tuntas_bimbingan')
-                .update({ rumusan: rumusanTeks })
+                .update({ rumusan: rumusanTeks.toUpperCase() }) // PENGOPTIMUMAN: Simpan sebagai huruf besar
                 .eq('kod_sekolah', kodSekolah.toUpperCase());
 
             if (error) throw error;
@@ -170,6 +191,40 @@ const API = {
         } catch (error) {
             console.error('Ralat API kemaskiniRumusanAdmin:', error);
             return { status: 'error', message: 'Gagal menyimpan rumusan: ' + error.message };
+        }
+    },
+
+    /**
+     * Fungsi khas untuk Admin memadam rekod bimbingan bagi sesebuah sekolah.
+     * @param {string} kodSekolah - Kod sekolah yang ingin dipadam
+     * @param {string} emailInput - Emel log masuk
+     * @param {string} passwordInput - Kata laluan log masuk
+     * @returns {Promise<Object>} Status padam data
+     */
+    padamRekodBimbingan: async function(kodSekolah, emailInput, passwordInput) {
+        try {
+            // Pengesahan Kredensial (Semakan JS)
+            if (emailInput !== window.ADMIN_EMAIL || passwordInput !== window.ADMIN_PASSWORD_FALLBACK) {
+                return { status: 'error', message: 'Akses Ditolak: E-mel atau Kata Laluan tidak sah.' };
+            }
+
+            if (!kodSekolah) return { status: 'error', message: 'Ralat: Kod sekolah tidak dijumpai.' };
+
+            // Padam rekod secara terus berdasarkan kod_sekolah
+            const { error } = await dbClient
+                .from('tuntas_bimbingan')
+                .delete()
+                .eq('kod_sekolah', kodSekolah.toUpperCase());
+
+            if (error) throw error;
+
+            return { 
+                status: 'success', 
+                message: `Rekod bimbingan sekolah ${kodSekolah.toUpperCase()} telah selamat dipadam.` 
+            };
+        } catch (error) {
+            console.error('Ralat API padamRekodBimbingan:', error);
+            return { status: 'error', message: 'Gagal memadam rekod: ' + error.message };
         }
     }
 };

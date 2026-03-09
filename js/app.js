@@ -2,7 +2,7 @@
  * ============================================================================
  * BIMBINGAN PROGRAM TUNTAS - LOGIK APLIKASI (UI & EVENTS) V7
  * Pengarang: 0.1% Elite Senior Software Architect
- * Keterangan: Mengawal manipulasi DOM, navigasi, validasi, dan rendering carta.
+ * Keterangan: Mengawal manipulasi DOM, navigasi, validasi, carta, dan sesi admin.
  * ============================================================================
  */
 
@@ -34,6 +34,7 @@ let bimbinganChart = null;
 let laporanSemasaData = null;
 let lastFetchedKod = '';
 let debounceTimer;
+let tindakanSelepasLogin = null; // Menyimpan konteks tindakan jika modal admin dipanggil
 
 // Inisialisasi Aplikasi apabila DOM sedia
 document.addEventListener('DOMContentLoaded', () => {
@@ -42,6 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
     janaDropdownPenapisLaporan();
     kemaskiniUIIndicators();
     ikatEventListerSistem();
+    kemaskiniUIAdmin(); // Semak sesi admin semasa muat semula
 });
 
 /**
@@ -60,11 +62,9 @@ function ikatEventListerSistem() {
     document.getElementById('btn-quick-save').addEventListener('click', (e) => handleFormSubmit(e, true));
     document.getElementById('bimbinganForm').addEventListener('submit', (e) => handleFormSubmit(e, false));
     
-    // PEMBAIKAN: Ikat butang INFO untuk kembali ke tab awal
     const btnInfo = document.getElementById('nav-step-0');
     if (btnInfo) btnInfo.addEventListener('click', () => lompatKeLangkah(0));
     
-    // Kemas kini status navigasi atas apabila radio ditekan
     document.getElementById('bimbinganForm').addEventListener('change', kemaskiniStatusNavigasi);
 
     // 3. Carian Kod Sekolah (Borang) - Autocomplete
@@ -74,18 +74,17 @@ function ikatEventListerSistem() {
         kawalCarianAutokomplet(e.target.value, 'kodSekolahSuggestions', pilihSekolahBorang);
     });
     
-    // Blur event untuk menyemak data lama sekiranya pengguna menaip kod terus tanpa memilih
     kodInput.addEventListener('blur', () => {
         setTimeout(() => {
             document.getElementById('kodSekolahSuggestions').classList.add('hidden');
             semakDataTerdahuluBorang(kodInput.value);
-        }, 200); // Timeout kecil untuk membenarkan event 'click' dropdown berjalan dahulu
+        }, 200); 
     });
 
     // 4. Reset Borang
     document.getElementById('btn-reset-borang').addEventListener('click', resetBorangKeseluruhan);
 
-    // 5. Laporan - Carian & Jana
+    // 5. Laporan - Carian & Jana & Auto-populate
     const searchInput = document.getElementById('searchKodSekolahInput');
     searchInput.addEventListener('input', (e) => {
         e.target.value = e.target.value.toUpperCase();
@@ -94,13 +93,31 @@ function ikatEventListerSistem() {
     searchInput.addEventListener('blur', () => {
         setTimeout(() => document.getElementById('searchKodSekolahSuggestions').classList.add('hidden'), 200);
     });
+    
     document.getElementById('searchBtn').addEventListener('click', laksanakanJanaanLaporan);
     document.getElementById('filterKomponen').addEventListener('change', kemasKiniCarta);
+    
+    // Dropdown senarai sekolah dinilai
+    document.getElementById('selectSekolahDinilai').addEventListener('change', (e) => {
+        if(e.target.value) {
+            document.getElementById('searchKodSekolahInput').value = e.target.value;
+            laksanakanJanaanLaporan(); // Terus jana laporan jika pengguna memilih dari senarai
+        }
+    });
 
-    // 6. Admin Modal Laporan
-    document.getElementById('btnRumusanAdmin').addEventListener('click', bukaModalAdmin);
+    // 6. Pengurusan Admin (Login, Logout, Kemas Kini, Padam)
+    document.getElementById('btn-admin-auth-nav').addEventListener('click', kawalSesiAdmin);
+    document.getElementById('btnTutupSilangAdmin').addEventListener('click', tutupModalAdmin);
     document.getElementById('btnBatalAdmin').addEventListener('click', tutupModalAdmin);
-    document.getElementById('btnSahkanAdmin').addEventListener('click', hantarKemasKiniRumusanAdmin);
+    document.getElementById('btnSahkanAdmin').addEventListener('click', prosesLogMasukAdmin);
+    
+    document.getElementById('btnRumusanAdmin').addEventListener('click', () => urusTindakanAdmin('kemaskini_rumusan'));
+    document.getElementById('btnPadamRekodAdmin').addEventListener('click', () => urusTindakanAdmin('padam_rekod'));
+
+    // PENGOPTIMUMAN: Auto Huruf Besar untuk kotak rumusan admin
+    document.getElementById('rumusanTeks').addEventListener('input', (e) => {
+        e.target.value = e.target.value.toUpperCase();
+    });
 }
 
 /**
@@ -134,7 +151,7 @@ function kawalCarianAutokomplet(nilai, dropdownId, callbackPilihan) {
         } else {
             dropdown.classList.add('hidden');
         }
-    }, 400); // 400ms debounce
+    }, 400); 
 }
 
 function pilihSekolahBorang(sekolah) {
@@ -203,7 +220,6 @@ function janaBorangDinamik() {
 
 function janaNavigasiPantas() {
     const navContainer = document.getElementById('quick-nav');
-    // Button INFO sudah ada di HTML, kita tambah button untuk komponen A-K
     window.strukturBimbingan.forEach((komponen, index) => {
         const stepIdx = index + 1;
         const btn = document.createElement('button');
@@ -222,7 +238,6 @@ function janaNavigasiPantas() {
  * ==========================================
  */
 function lompatKeLangkah(n) {
-    // Validasi INFO Sekolah sebelum melompat ke tab lain (selain tab 0)
     if (n > 0) {
         const kod = document.getElementById('kodSekolah').value.trim();
         const nama = document.getElementById('namaSekolah').value.trim();
@@ -254,7 +269,6 @@ function navigateStep(direction) {
                 return;
             }
         } else {
-            // Semakan butang radio wajib sebelum ke langkah seterusnya
             const activeKomponen = window.strukturBimbingan[currentStep - 1];
             if (activeKomponen.wajib) {
                 let allFilled = true;
@@ -293,7 +307,6 @@ function kemaskiniUIIndicators() {
     document.getElementById('btn-next').classList.toggle('hidden', currentStep === totalSteps - 1);
     document.getElementById('btn-submit').classList.toggle('hidden', currentStep !== totalSteps - 1);
     
-    // Simpan Kemajuan hanya muncul pada langkah-langkah akhir (I, J, K) -> Index 9, 10, 11
     const isAtIJK = (currentStep >= 9 && currentStep <= 11);
     document.getElementById('btn-quick-save').classList.toggle('hidden', !isAtIJK);
     
@@ -330,7 +343,6 @@ async function semakDataTerdahuluBorang(kodSekolah) {
         return;
     }
     
-    // Elak pertanyaan berulang kepada pelayan
     if (lastFetchedKod === kod) return;
     lastFetchedKod = kod;
 
@@ -345,7 +357,6 @@ async function semakDataTerdahuluBorang(kodSekolah) {
 
     if (respon.status === 'success') {
         if (respon.isExisting) {
-            // Rekod wujud, prepopulate borang
             if (!document.getElementById('namaSekolah').value && respon.data.nama_sekolah) {
                 document.getElementById('namaSekolah').value = respon.data.nama_sekolah;
             }
@@ -362,13 +373,12 @@ async function semakDataTerdahuluBorang(kodSekolah) {
             showToast("Data bimbingan sekolah berjaya dimuatkan.", "success");
             kemaskiniStatusNavigasi();
         } else {
-            // Rekod baharu
             kosongkanSemuaRadio();
             infoText.innerHTML = `<span class="text-blue-600 font-bold uppercase">Rekod Baharu.</span> Sila lengkapkan borang bimbingan.`;
             kemaskiniStatusNavigasi();
         }
     } else {
-        lastFetchedKod = ''; // Reset tracker jika gagal
+        lastFetchedKod = ''; 
         infoText.innerText = "Gagal menyemak rekod.";
         showToast(respon.message, "error");
     }
@@ -377,7 +387,6 @@ async function semakDataTerdahuluBorang(kodSekolah) {
 async function handleFormSubmit(event, isQuickSave = false) {
     if (event) event.preventDefault();
 
-    // Pastikan kod dan nama sekolah diisi sebelum hantar
     const kod = document.getElementById('kodSekolah').value.trim();
     const nama = document.getElementById('namaSekolah').value.trim();
     if (!kod || !nama) {
@@ -391,22 +400,18 @@ async function handleFormSubmit(event, isQuickSave = false) {
     const btnText = document.getElementById('submitBtnText');
     const loader = isQuickSave ? document.getElementById('quickSaveLoader') : document.getElementById('submitBtnLoader');
     
-    // Disable buttons
     if (isQuickSave) quickBtn.disabled = true;
     else submitBtn.disabled = true;
     
     if (!isQuickSave) btnText.innerText = "Menyimpan Rekod...";
     loader.classList.remove('hidden');
 
-    // Kumpulkan data borang
     const formDataObj = new FormData(document.getElementById('bimbinganForm'));
     const payload = {};
     formDataObj.forEach((value, key) => { payload[key] = value; });
 
-    // Panggil API Supabase
     const respon = await window.API.simpanBorangBimbingan(payload);
 
-    // Re-enable buttons
     if (isQuickSave) quickBtn.disabled = false;
     else submitBtn.disabled = false;
     
@@ -416,7 +421,7 @@ async function handleFormSubmit(event, isQuickSave = false) {
     if (respon.status === 'success') {
         showToast(respon.message, 'success');
         if (!isQuickSave) {
-            lompatKeLangkah(0); // Kembali ke mula jika submit akhir
+            lompatKeLangkah(0);
         }
     } else {
         showToast(respon.message, 'error');
@@ -459,6 +464,32 @@ function kosongkanSemuaRadio() {
  * LOGIK PELAPORAN & CARTA KOMPREHENSIF
  * ==========================================
  */
+async function muatTurunSenaraiDinilai() {
+    const selectEl = document.getElementById('selectSekolahDinilai');
+    const teksJumlah = document.getElementById('teks-jumlah-rekod');
+    const indikator = document.getElementById('indikator-rekod');
+    
+    teksJumlah.innerText = "Memuatkan senarai...";
+    indikator.className = "w-2 h-2 rounded-full mr-2 bg-yellow-400 animate-pulse";
+    
+    const respon = await window.API.dapatkanSenaraiTelahDinilai();
+    
+    if (respon.status === 'success') {
+        selectEl.innerHTML = '<option value="">-- PILIH DARI SENARAI SEDIA ADA --</option>';
+        respon.data.forEach(sek => {
+            const opt = document.createElement('option');
+            opt.value = sek.kod_sekolah;
+            opt.text = `${sek.kod_sekolah} - ${sek.nama_sekolah}`;
+            selectEl.appendChild(opt);
+        });
+        teksJumlah.innerText = `${respon.data.length} Rekod Tersedia`;
+        indikator.className = "w-2 h-2 rounded-full mr-2 bg-green-500";
+    } else {
+        teksJumlah.innerText = "Gagal memuatkan senarai";
+        indikator.className = "w-2 h-2 rounded-full mr-2 bg-red-500";
+    }
+}
+
 function janaDropdownPenapisLaporan() {
     const filterSelect = document.getElementById('filterKomponen');
     filterSelect.innerHTML = '';
@@ -510,6 +541,8 @@ function paparAntaramukaPelaporan() {
     const dateObj = new Date(laporanSemasaData.timestamp);
     document.getElementById('paparanTimestamp').innerText = `Kemas kini: ${dateObj.toLocaleString('ms-MY')}`;
     document.getElementById('rumusanTeks').value = laporanSemasaData.rumusan || '';
+    
+    kemaskiniUIAdmin(); // Pastikan butang padam dipaparkan jika sesi aktif
 }
 
 function wrapTextChart(text, maxLength) {
@@ -551,7 +584,6 @@ function kemasKiniCarta() {
 
     const ctx = document.getElementById('barChart').getContext('2d');
     
-    // Musnahkan carta lama sebelum melukis yang baharu
     if (bimbinganChart) bimbinganChart.destroy();
     
     bimbinganChart = new Chart(ctx, {
@@ -577,77 +609,83 @@ function kemasKiniCarta() {
  * LOGIK MODAL ADMIN PPD & SESSION CACHING
  * ==========================================
  */
-function bukaModalAdmin() {
-    const teks = document.getElementById('rumusanTeks').value.trim();
-    if (!teks) {
-        showToast("Sila masukkan teks rumusan terlebih dahulu.", "error");
-        return;
+function kemaskiniUIAdmin() {
+    const isVerified = sessionStorage.getItem('tuntas_admin_verified') === 'true';
+    const navBtn = document.getElementById('btn-admin-auth-nav');
+    const navTeks = document.getElementById('teks-admin-auth-nav');
+    const btnPadam = document.getElementById('btnPadamRekodAdmin');
+    
+    if (isVerified) {
+        navBtn.classList.replace('bg-amber-500', 'bg-red-600');
+        navBtn.classList.replace('hover:bg-amber-600', 'hover:bg-red-700');
+        navTeks.innerText = 'Log Keluar Admin';
+        if(laporanSemasaData && btnPadam) btnPadam.classList.remove('hidden');
+    } else {
+        navBtn.classList.replace('bg-red-600', 'bg-amber-500');
+        navBtn.classList.replace('hover:bg-red-700', 'hover:bg-amber-600');
+        navTeks.innerText = 'Log Masuk Admin';
+        if(btnPadam) btnPadam.classList.add('hidden');
+    }
+}
+
+function kawalSesiAdmin() {
+    const isVerified = sessionStorage.getItem('tuntas_admin_verified') === 'true';
+    
+    if (isVerified) {
+        Swal.fire({
+            title: 'Log Keluar Admin',
+            text: 'Adakah anda pasti untuk menamatkan sesi admin?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Ya, Log Keluar',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                sessionStorage.removeItem('tuntas_admin_verified');
+                kemaskiniUIAdmin();
+                showToast('Berjaya log keluar dari sistem.', 'success');
+            }
+        });
+    } else {
+        bukaModalAdmin('login_sahaja');
+    }
+}
+
+function urusTindakanAdmin(tindakan) {
+    if (tindakan === 'kemaskini_rumusan') {
+        const teks = document.getElementById('rumusanTeks').value.trim();
+        if (!teks) {
+            showToast("Sila masukkan teks rumusan terlebih dahulu.", "error");
+            return;
+        }
     }
 
-    // PENGOPTIMUMAN: Semak sekiranya sesi Admin telah disahkan sebelum ini
-    if (sessionStorage.getItem('tuntas_admin_verified') === 'true') {
-        // Abaikan modal, terus panggil API untuk mengemas kini data
-        laksanaKemasKiniSegera(teks);
-        return;
+    const isVerified = sessionStorage.getItem('tuntas_admin_verified') === 'true';
+    if (isVerified) {
+        if (tindakan === 'kemaskini_rumusan') laksanaKemasKiniSegera();
+        else if (tindakan === 'padam_rekod') padamRekodSistem();
+    } else {
+        bukaModalAdmin(tindakan);
     }
+}
 
-    // Jika sesi belum wujud, tunjukkan modal pengesahan seperti biasa
+function bukaModalAdmin(tindakan = 'login_sahaja') {
+    tindakanSelepasLogin = tindakan;
     document.getElementById('inputPassAdmin').value = '';
     document.getElementById('modalAdminAuth').classList.remove('hidden');
 }
 
 function tutupModalAdmin() {
     document.getElementById('modalAdminAuth').classList.add('hidden');
+    tindakanSelepasLogin = null;
 }
 
-/**
- * Logik pintasan apabila sesi disahkan.
- */
-async function laksanaKemasKiniSegera(rumusanTeks) {
-    if (!laporanSemasaData || !laporanSemasaData.kodSekolah) {
-        showToast("Ralat Kod Sekolah. Sila jana laporan semula.", "error");
-        return;
-    }
-
-    const btn = document.getElementById('btnRumusanAdmin');
-    const loader = document.getElementById('adminLoader');
-    
-    btn.disabled = true;
-    if (loader) loader.classList.remove('hidden');
-
-    // Menghantar kata laluan dari global config secara tersembunyi
-    const respon = await window.API.kemaskiniRumusanAdmin(
-        laporanSemasaData.kodSekolah, 
-        rumusanTeks, 
-        window.ADMIN_EMAIL, 
-        window.ADMIN_PASSWORD_FALLBACK
-    );
-
-    btn.disabled = false;
-    if (loader) loader.classList.add('hidden');
-
-    if (respon.status === 'success') {
-        showToast("Rumusan dikemas kini (Sesi Aktif)", 'success');
-        // Kemas kini data lokal agar kekal segerak
-        laporanSemasaData.rumusan = rumusanTeks;
-    } else {
-        showToast(respon.message, 'error');
-        // Jika gagal (contoh: ralat server), luputkan sesi cache sebagai langkah keselamatan
-        sessionStorage.removeItem('tuntas_admin_verified');
-    }
-}
-
-async function hantarKemasKiniRumusanAdmin() {
+async function prosesLogMasukAdmin() {
     const email = document.getElementById('inputEmailAdmin').value;
     const password = document.getElementById('inputPassAdmin').value;
-    const rumusanTeks = document.getElementById('rumusanTeks').value;
     
-    if (!laporanSemasaData || !laporanSemasaData.kodSekolah) {
-        showToast("Ralat Kod Sekolah. Sila jana laporan semula.", "error");
-        tutupModalAdmin();
-        return;
-    }
-
     if (!password) {
         showToast("Sila masukkan kata laluan untuk pengesahan.", "error");
         return;
@@ -661,28 +699,104 @@ async function hantarKemasKiniRumusanAdmin() {
     teksBtn.innerText = "Mengesahkan...";
     loader.classList.remove('hidden');
 
+    // Simulasi pengesahan klien seperti arahan reka bentuk
+    setTimeout(() => {
+        btn.disabled = false;
+        teksBtn.innerText = "Log Masuk";
+        loader.classList.add('hidden');
+        
+        if (email === window.ADMIN_EMAIL && password === window.ADMIN_PASSWORD_FALLBACK) {
+            sessionStorage.setItem('tuntas_admin_verified', 'true');
+            kemaskiniUIAdmin();
+            tutupModalAdmin();
+            showToast('Pengesahan Berjaya. Sesi Admin Aktif.', 'success');
+            
+            // Laksanakan rantaian fungsi jika log masuk dipanggil dari butang spesifik
+            if (tindakanSelepasLogin === 'kemaskini_rumusan') {
+                laksanaKemasKiniSegera();
+            } else if (tindakanSelepasLogin === 'padam_rekod') {
+                padamRekodSistem();
+            }
+        } else {
+            showToast('Akses Ditolak: Kata Laluan tidak sah.', 'error');
+        }
+    }, 800);
+}
+
+async function laksanaKemasKiniSegera() {
+    if (!laporanSemasaData || !laporanSemasaData.kodSekolah) return;
+
+    const rumusanTeks = document.getElementById('rumusanTeks').value;
+    const btn = document.getElementById('btnRumusanAdmin');
+    const loader = document.getElementById('adminLoader');
+    
+    btn.disabled = true;
+    loader.classList.remove('hidden');
+
     const respon = await window.API.kemaskiniRumusanAdmin(
         laporanSemasaData.kodSekolah, 
         rumusanTeks, 
-        email, 
-        password
+        window.ADMIN_EMAIL, 
+        window.ADMIN_PASSWORD_FALLBACK
     );
 
     btn.disabled = false;
-    teksBtn.innerText = "Sahkan";
     loader.classList.add('hidden');
-    tutupModalAdmin();
 
     if (respon.status === 'success') {
-        showToast(respon.message, 'success');
-        // Kemas kini data lokal agar kekal segerak
-        laporanSemasaData.rumusan = rumusanTeks;
-        
-        // PENGOPTIMUMAN: Simpan cache sesi pengesahan untuk tetingkap aktif
-        sessionStorage.setItem('tuntas_admin_verified', 'true');
+        showToast("Rumusan dikemas kini dengan jayanya.", 'success');
+        laporanSemasaData.rumusan = rumusanTeks.toUpperCase();
     } else {
         showToast(respon.message, 'error');
+        sessionStorage.removeItem('tuntas_admin_verified');
+        kemaskiniUIAdmin();
     }
+}
+
+function padamRekodSistem() {
+    if (!laporanSemasaData || !laporanSemasaData.kodSekolah) return;
+    
+    Swal.fire({
+        title: 'AMARAN PENGHAPUSAN!',
+        html: `Anda pasti mahu memadam semua rekod dan data bagi sekolah <b>${laporanSemasaData.kodSekolah}</b>?<br><br><span class="text-red-600 font-bold">Tindakan ini tidak boleh dipulihkan.</span>`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Ya, Padam Pangkalan Data',
+        cancelButtonText: 'Batal'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            const btn = document.getElementById('btnPadamRekodAdmin');
+            const loader = document.getElementById('loaderPadamAdmin');
+            
+            btn.disabled = true;
+            loader.classList.remove('hidden');
+            
+            const respon = await window.API.padamRekodBimbingan(
+                laporanSemasaData.kodSekolah,
+                window.ADMIN_EMAIL,
+                window.ADMIN_PASSWORD_FALLBACK
+            );
+            
+            btn.disabled = false;
+            loader.classList.add('hidden');
+            
+            if(respon.status === 'success') {
+                showToast(respon.message, 'success');
+                document.getElementById('reportContainer').classList.add('hidden');
+                document.getElementById('emptyStateContainer').classList.remove('hidden');
+                document.getElementById('searchKodSekolahInput').value = '';
+                document.getElementById('selectSekolahDinilai').value = '';
+                laporanSemasaData = null;
+                
+                // Segar semula senarai carian sekolah
+                muatTurunSenaraiDinilai();
+            } else {
+                showToast(respon.message, 'error');
+            }
+        }
+    });
 }
 
 /**
@@ -695,4 +809,9 @@ function switchTab(tabId) {
     document.getElementById('section-report').classList.toggle('hidden', tabId !== 'report');
     document.getElementById('btn-tab-form').classList.toggle('bg-blue-800', tabId === 'form');
     document.getElementById('btn-tab-report').classList.toggle('bg-blue-800', tabId === 'report');
+    
+    // Muat turun senarai sekolah secara auto-populate jika tab Pelaporan dibuka
+    if (tabId === 'report') {
+        muatTurunSenaraiDinilai();
+    }
 }

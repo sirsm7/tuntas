@@ -40,14 +40,21 @@
 </head>
 <body class="bg-gray-50 text-gray-800 font-sans min-h-screen flex flex-col">
 
-    <nav class="bg-blue-700 text-white shadow-md">
+    <nav class="bg-blue-700 text-white shadow-md relative z-20">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
                 <div class="flex items-center">
                     <img src="icoppdag.png" alt="Logo PPD" class="h-8 w-auto mr-2 drop-shadow-md">
-                    <span class="font-bold text-xl tracking-wider uppercase">Borang Penilaian Kendiri TUNTAS</span>
+                    <span class="font-bold text-lg md:text-xl tracking-wider uppercase hidden sm:block">Borang Penilaian Kendiri TUNTAS</span>
+                    <span class="font-bold text-lg tracking-wider uppercase sm:hidden">TUNTAS V7</span>
                 </div>
-                <div class="flex space-x-4 items-center">
+                <div class="flex space-x-2 md:space-x-4 items-center">
+                    <button id="btn-admin-auth-nav" class="px-3 py-2 rounded-md text-xs font-bold bg-amber-500 text-white hover:bg-amber-600 shadow-sm focus:outline-none transition-colors flex items-center">
+                        <svg class="w-4 h-4 md:mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        <span id="teks-admin-auth-nav" class="hidden md:inline">Log Masuk Admin</span>
+                    </button>
                     <button id="btn-tab-form" class="px-3 py-2 rounded-md text-sm font-medium bg-blue-800 focus:outline-none transition-colors">Borang</button>
                     <button id="btn-tab-report" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600 focus:outline-none transition-colors">Pelaporan</button>
                 </div>
@@ -71,7 +78,7 @@
 
                 <div id="quick-nav" class="flex flex-wrap gap-2 py-2 overflow-x-auto no-scrollbar">
                     <button type="button" id="nav-step-0" class="nav-btn-active px-3 py-2 border rounded-md text-xs font-bold transition-all bg-white border-gray-300">INFO</button>
-                    </div>
+                </div>
             </div>
 
             <div class="w-full bg-gray-200 rounded-full h-1.5 mb-8">
@@ -147,20 +154,36 @@
         </section>
 
         <section id="section-report" class="hidden bg-white rounded-xl shadow-lg border border-gray-100 p-6 md:p-8">
-            <div class="mb-6 border-b border-gray-200 pb-4">
-                <h2 class="text-2xl font-bold text-gray-800">Pelaporan Bimbingan Komprehensif</h2>
-                <p class="text-sm text-gray-500 mt-1">Sila jana pelaporan untuk melihat carta dan rumusan admin.</p>
+            <div class="mb-6 border-b border-gray-200 pb-4 flex flex-col md:flex-row justify-between items-start md:items-center">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800">Pelaporan Bimbingan Komprehensif</h2>
+                    <p class="text-sm text-gray-500 mt-1">Sila jana pelaporan untuk melihat carta dan rumusan admin.</p>
+                </div>
+                <div class="mt-2 md:mt-0 flex items-center text-sm font-semibold text-gray-600">
+                    <span id="status-rekod-terkini" class="flex items-center">
+                        <div class="w-2 h-2 rounded-full bg-gray-400 mr-2" id="indikator-rekod"></div>
+                        <span id="teks-jumlah-rekod">Memuatkan senarai...</span>
+                    </span>
+                </div>
             </div>
 
-            <div class="flex flex-col sm:flex-row gap-4 mb-6 relative">
-                <div class="flex-grow relative">
-                    <input type="text" id="searchKodSekolahInput" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 uppercase font-bold bg-white text-blue-800" placeholder="Taip Kod / Nama Sekolah Untuk Mencari...">
-                    <ul id="searchKodSekolahSuggestions" class="absolute z-10 w-full bg-white border border-gray-300 rounded-lg mt-1 max-h-48 overflow-y-auto hidden shadow-lg"></ul>
+            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6">
+                <label class="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wide">Pilihan Carian Sekolah (Telah Dinilai)</label>
+                <div class="flex flex-col md:flex-row gap-3">
+                    <div class="w-full md:w-1/2 relative">
+                        <select id="selectSekolahDinilai" class="w-full px-4 py-3 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-bold bg-white text-blue-800 shadow-sm cursor-pointer transition-colors hover:border-blue-400">
+                            <option value="">-- PILIH DARI SENARAI SEDIA ADA --</option>
+                        </select>
+                    </div>
+                    <div class="w-full md:w-1/2 relative flex shadow-sm">
+                        <input type="text" id="searchKodSekolahInput" class="w-full px-4 py-3 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 uppercase font-bold bg-white text-gray-800 border-r-0 placeholder-gray-400" placeholder="Atau Taip Kod / Nama Sekolah...">
+                        <ul id="searchKodSekolahSuggestions" class="absolute z-10 w-full bg-white border border-gray-300 rounded-lg mt-[3.2rem] max-h-48 overflow-y-auto hidden shadow-lg"></ul>
+                        <button type="button" id="searchBtn" class="flex-shrink-0 flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-r-lg transition-all border border-blue-600">
+                            <span id="searchBtnText">Jana</span>
+                            <div id="searchBtnLoader" class="loader ml-3 hidden border-white border-t-transparent w-4 h-4"></div>
+                        </button>
+                    </div>
                 </div>
-                <button type="button" id="searchBtn" class="flex-shrink-0 flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg shadow-md transition-all">
-                    <span id="searchBtnText">Jana Pelaporan</span>
-                    <div id="searchBtnLoader" class="loader ml-3 hidden border-white border-t-transparent"></div>
-                </button>
             </div>
 
             <div id="reportContainer" class="hidden">
@@ -195,19 +218,31 @@
                     </div>
                     <div class="p-6">
                         <textarea id="rumusanTeks" rows="6" placeholder="Admin belum memasukkan rumusan untuk sekolah ini..."
-                                  class="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl text-gray-700 focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-sm leading-relaxed"></textarea>
+                                  class="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl text-gray-800 font-semibold focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-sm leading-relaxed uppercase"></textarea>
                         
-                        <div class="mt-4 flex flex-col md:flex-row gap-4 items-center justify-between">
-                            <p class="text-xs text-gray-500 italic flex items-center">
-                                <svg class="w-4 h-4 mr-1 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
+                        <div class="mt-4 flex flex-col lg:flex-row gap-4 items-center justify-between">
+                            <p class="text-xs text-gray-500 italic flex items-center lg:max-w-md">
+                                <svg class="w-4 h-4 mr-1 text-amber-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
                                 </svg>
-                                Hanya Admin PPD (hairoldinrahim@moe.gov.my) boleh mengemaskini rumusan ini.
+                                <span>Hanya Admin PPD berdaftar boleh mengemaskini rumusan atau memadam rekod pangkalan data.</span>
                             </p>
-                            <button type="button" id="btnRumusanAdmin" class="w-full md:w-auto px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition-all flex items-center justify-center">
-                                <span id="teksBtnRumusanAdmin">Kemas Kini Rumusan</span>
-                                <div id="adminLoader" class="loader-small border-white ml-2 hidden"></div>
-                            </button>
+                            <div class="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+                                <button type="button" id="btnPadamRekodAdmin" class="hidden w-full sm:w-auto px-5 py-2.5 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white border border-red-200 font-bold rounded-lg shadow-sm transition-all flex items-center justify-center">
+                                    <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                    <span>Padam Rekod</span>
+                                    <div id="loaderPadamAdmin" class="loader-small border-red-600 border-t-transparent hover:border-white ml-2 hidden"></div>
+                                </button>
+                                <button type="button" id="btnRumusanAdmin" class="w-full sm:w-auto px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition-all flex items-center justify-center">
+                                    <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                                    </svg>
+                                    <span id="teksBtnRumusanAdmin">Kemas Kini Rumusan</span>
+                                    <div id="adminLoader" class="loader-small border-white ml-2 hidden"></div>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -225,24 +260,36 @@
 
     <div id="modalAdminAuth" class="fixed inset-0 bg-black/60 z-[100] hidden flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 transform transition-all">
-            <h3 class="text-lg font-bold text-gray-800 mb-2">Pengesahan Admin PPD</h3>
-            <p class="text-sm text-gray-500 mb-6">Log masuk diperlukan untuk menyimpan rumusan.</p>
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="text-lg font-bold text-gray-800 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    Pengesahan Admin PPD
+                </h3>
+                <button type="button" id="btnTutupSilangAdmin" class="text-gray-400 hover:text-red-500 transition-colors">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <p id="teksArahModalAdmin" class="text-sm text-gray-500 mb-6">Log masuk diperlukan untuk mengurus rumusan dan memadam data.</p>
             
             <div class="space-y-4 mb-6">
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1">E-mel MOE</label>
-                    <input type="email" id="inputEmailAdmin" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="hairoldinrahim@moe.gov.my" value="hairoldinrahim@moe.gov.my" readonly>
+                    <input type="email" id="inputEmailAdmin" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-semibold text-gray-700 bg-gray-50" placeholder="hairoldinrahim@moe.gov.my" value="hairoldinrahim@moe.gov.my" readonly>
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1">Kata Laluan</label>
-                    <input type="password" id="inputPassAdmin" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Masukkan kata laluan">
+                    <input type="password" id="inputPassAdmin" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Masukkan kata laluan sistem">
                 </div>
             </div>
 
             <div class="flex gap-3">
-                <button type="button" id="btnBatalAdmin" class="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-gray-500 font-bold hover:bg-gray-50">Batal</button>
-                <button type="button" id="btnSahkanAdmin" class="flex-1 flex justify-center items-center px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700">
-                    <span id="teksBtnSahkanAdmin">Sahkan</span>
+                <button type="button" id="btnBatalAdmin" class="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-gray-500 font-bold hover:bg-gray-50 transition-colors">Batal</button>
+                <button type="button" id="btnSahkanAdmin" class="flex-1 flex justify-center items-center px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 shadow-md transition-colors">
+                    <span id="teksBtnSahkanAdmin">Log Masuk</span>
                     <div id="loaderAdminModal" class="loader-small border-white ml-2 hidden"></div>
                 </button>
             </div>
