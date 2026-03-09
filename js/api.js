@@ -6,7 +6,9 @@
  * ============================================================================
  */
 
-const supabase = window.supabaseClient;
+// FIX: Menukar nama pembolehubah dari 'supabase' kepada 'dbClient' 
+// untuk mengelakkan pertembungan skop dengan pembolehubah global dari CDN.
+const dbClient = window.supabaseClient;
 
 const API = {
     /**
@@ -20,7 +22,7 @@ const API = {
 
             const kataKunci = `%${carian.toUpperCase()}%`;
             
-            const { data, error } = await supabase
+            const { data, error } = await dbClient
                 .from('smpid_sekolah_data')
                 .select('kod_sekolah, nama_sekolah')
                 .or(`kod_sekolah.ilike.${kataKunci},nama_sekolah.ilike.${kataKunci}`)
@@ -44,7 +46,7 @@ const API = {
         try {
             if (!kodSekolah) return { status: 'error', message: 'Kod sekolah tidak sah.' };
 
-            const { data, error } = await supabase
+            const { data, error } = await dbClient
                 .from('tuntas_bimbingan')
                 .select('*')
                 .eq('kod_sekolah', kodSekolah.toUpperCase())
@@ -86,7 +88,7 @@ const API = {
             }
 
             // Laksanakan fungsi UPSERT dengan kod_sekolah sebagai kunci unik
-            const { error } = await supabase
+            const { error } = await dbClient
                 .from('tuntas_bimbingan')
                 .upsert(simpanan, { onConflict: 'kod_sekolah' });
 
@@ -109,7 +111,7 @@ const API = {
      */
     dapatkanDataPelaporan: async function(kodSekolah) {
         try {
-            const { data, error } = await supabase
+            const { data, error } = await dbClient
                 .from('tuntas_bimbingan')
                 .select('*')
                 .eq('kod_sekolah', kodSekolah.toUpperCase())
@@ -154,7 +156,7 @@ const API = {
             }
 
             // Kemas kini hanya lajur 'rumusan' dan tarikh ubah suai akan terpicu secara automatik oleh trigger DB
-            const { error } = await supabase
+            const { error } = await dbClient
                 .from('tuntas_bimbingan')
                 .update({ rumusan: rumusanTeks })
                 .eq('kod_sekolah', kodSekolah.toUpperCase());
@@ -175,4 +177,4 @@ const API = {
 // Mendedahkan API ke skop global untuk dipanggil oleh modul app.js
 window.API = API;
 
-console.log('Sistem Tuntas: Modul API Pangkalan Data berjaya dimuatkan.');
+console.log('Sistem Tuntas: Modul API Pangkalan Data berjaya dimuatkan dan dikemas kini.');

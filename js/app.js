@@ -28,8 +28,9 @@ function showToast(message, type = 'success') {
 
 // Pembolehubah Global (State)
 let currentStep = 0;
-const strukturBimbingan = window.strukturBimbingan;
-const totalSteps = strukturBimbingan.length + 1; // 1 Langkah Info + 11 Langkah Komponen
+// FIX: Membuang pengisytiharan semula 'const strukturBimbingan' untuk elak ralat syntax.
+// Merujuk terus kepada objek global yang dijana oleh data.js.
+const totalSteps = window.strukturBimbingan.length + 1; // 1 Langkah Info + 11 Langkah Komponen
 let bimbinganChart = null;
 let laporanSemasaData = null;
 let lastFetchedKod = '';
@@ -154,7 +155,7 @@ function janaBorangDinamik() {
     const container = document.getElementById('dynamic-steps-container');
     container.innerHTML = '';
 
-    strukturBimbingan.forEach((komponen, index) => {
+    window.strukturBimbingan.forEach((komponen, index) => {
         const stepNum = index + 1;
         const stepDiv = document.createElement('div');
         stepDiv.id = `step-${stepNum}`;
@@ -200,7 +201,7 @@ function janaBorangDinamik() {
 function janaNavigasiPantas() {
     const navContainer = document.getElementById('quick-nav');
     // Button INFO sudah ada, kita tambah button untuk komponen A-K
-    strukturBimbingan.forEach((komponen, index) => {
+    window.strukturBimbingan.forEach((komponen, index) => {
         const stepIdx = index + 1;
         const btn = document.createElement('button');
         btn.type = 'button';
@@ -251,7 +252,7 @@ function navigateStep(direction) {
             }
         } else {
             // Semakan butang radio wajib sebelum ke langkah seterusnya
-            const activeKomponen = strukturBimbingan[currentStep - 1];
+            const activeKomponen = window.strukturBimbingan[currentStep - 1];
             if (activeKomponen.wajib) {
                 let allFilled = true;
                 activeKomponen.items.forEach(item => {
@@ -282,7 +283,7 @@ function kemaskiniUIIndicators() {
     const progressPct = ((currentStep + 1) / totalSteps) * 100;
     document.getElementById('progress-bar').style.width = `${progressPct}%`;
     
-    const indicatorText = currentStep === 0 ? "Maklumat Sekolah" : strukturBimbingan[currentStep - 1].tajuk;
+    const indicatorText = currentStep === 0 ? "Maklumat Sekolah" : window.strukturBimbingan[currentStep - 1].tajuk;
     document.getElementById('step-indicator').innerText = indicatorText;
     
     document.getElementById('btn-prev').classList.toggle('hidden', currentStep === 0);
@@ -297,7 +298,7 @@ function kemaskiniUIIndicators() {
 }
 
 function kemaskiniStatusNavigasi() {
-    strukturBimbingan.forEach((komponen, index) => {
+    window.strukturBimbingan.forEach((komponen, index) => {
         const stepIdx = index + 1;
         const navBtn = document.getElementById(`nav-step-${stepIdx}`);
         let allFilled = true;
@@ -458,7 +459,7 @@ function kosongkanSemuaRadio() {
 function janaDropdownPenapisLaporan() {
     const filterSelect = document.getElementById('filterKomponen');
     filterSelect.innerHTML = '';
-    strukturBimbingan.forEach((k, i) => {
+    window.strukturBimbingan.forEach((k, i) => {
         const opt = document.createElement('option');
         opt.value = i; 
         opt.text = k.tajuk;
@@ -528,7 +529,7 @@ function kemasKiniCarta() {
     if (!laporanSemasaData) return;
     
     const idx = document.getElementById('filterKomponen').value;
-    const kObj = strukturBimbingan[idx];
+    const kObj = window.strukturBimbingan[idx];
     
     const labels = []; 
     const scores = [];
