@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bimbingan Program Tuntas V7 (Pro Edition) - Supabase</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .loader {
+            border: 4px solid #f3f3f3; border-top: 4px solid #3b82f6; border-radius: 50%;
+            width: 24px; height: 24px; animation: spin 1s linear infinite;
+        }
+        .loader-small {
+            border: 3px solid #f3f3f3; border-top: 3px solid #3b82f6; border-radius: 50%;
+            width: 16px; height: 16px; animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .step-container { transition: all 0.3s ease-in-out; }
+        .nav-btn-active { background-color: #1e40af !important; color: white !important; border-color: #1e40af !important; }
+        .nav-btn-filled { border-bottom: 4px solid #10b981 !important; }
+        
+        /* Custom Scrollbar for Textarea */
+        textarea::-webkit-scrollbar { width: 8px; }
+        textarea::-webkit-scrollbar-track { background: #f1f1f1; }
+        textarea::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans min-h-screen flex flex-col">
+
+    <!-- Navbar -->
+    <nav class="bg-blue-700 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <svg class="h-8 w-8 mr-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span class="font-bold text-xl tracking-wider uppercase">Borang Penilaian Kendiri TUNTAS</span>
+                </div>
+                <div class="flex space-x-4 items-center">
+                    <button id="btn-tab-form" class="px-3 py-2 rounded-md text-sm font-medium bg-blue-800 focus:outline-none transition-colors">Borang</button>
+                    <button id="btn-tab-report" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600 focus:outline-none transition-colors">Pelaporan</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+        
+        <!-- SECTION: FORM -->
+        <section id="section-form" class="bg-white rounded-xl shadow-lg border border-gray-100 p-6 md:p-8 transition-opacity duration-300">
+            <div class="mb-6 border-b border-gray-200 pb-4">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800">Borang Input Bimbingan</h2>
+                        <p class="text-sm text-gray-500 mt-1">Lengkapkan maklumat sekolah dan skor bimbingan di bawah.</p>
+                    </div>
+                    <div class="text-right">
+                        <span id="step-indicator" class="text-sm font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">Maklumat Sekolah</span>
+                    </div>
+                </div>
+
+                <div id="quick-nav" class="flex flex-wrap gap-2 py-2 overflow-x-auto no-scrollbar">
+                    <button type="button" id="nav-step-0" class="nav-btn-active px-3 py-2 border rounded-md text-xs font-bold transition-all bg-white border-gray-300">INFO</button>
+                    <!-- Nav buttons will be injected here dynamically -->
+                </div>
+            </div>
+
+            <div class="w-full bg-gray-200 rounded-full h-1.5 mb-8">
+                <div id="progress-bar" class="bg-blue-600 h-1.5 rounded-full transition-all duration-300" style="width: 8.33%"></div>
+            </div>
+
+            <form id="bimbinganForm">
+                
+                <!-- STEP 0: INFO -->
+                <div id="step-0" class="step-container block">
+                    <div class="flex justify-between items-center mb-6 border-l-4 border-blue-600 pl-3">
+                        <h3 class="text-xl font-semibold text-gray-800">Maklumat Sekolah</h3>
+                        
+                        <!-- Reset Borang Button -->
+                        <button type="button" id="btn-reset-borang" class="flex items-center text-xs font-black bg-red-50 text-red-600 px-3 py-2 rounded-lg hover:bg-red-100 transition-colors uppercase border border-red-100">
+                            <svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Reset Borang
+                        </button>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="kodSekolah" class="block text-sm font-semibold text-gray-700 mb-1">Kod Sekolah</label>
+                            <div class="relative">
+                                <input type="text" id="kodSekolah" name="kodSekolah" required placeholder="Contoh: MBA0001" autocomplete="off"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow uppercase font-bold">
+                                
+                                <!-- Suggestions Dropdown -->
+                                <ul id="kodSekolahSuggestions" class="absolute z-10 w-full bg-white border border-gray-300 rounded-lg mt-1 max-h-48 overflow-y-auto hidden shadow-lg"></ul>
+
+                                <div id="statusCarianKod" class="absolute right-3 top-2.5 hidden">
+                                    <div class="loader-small border-blue-600"></div>
+                                </div>
+                            </div>
+                            <p id="teksInfoKod" class="text-xs text-gray-500 mt-1 italic">Sistem akan mengesan nama sekolah dan memuatkan data secara automatik.</p>
+                        </div>
+                        <div>
+                            <label for="namaSekolah" class="block text-sm font-semibold text-gray-700 mb-1">Nama Sekolah</label>
+                            <input type="text" id="namaSekolah" name="namaSekolah" required placeholder="NAMA SEKOLAH AKAN DIPAPARKAN DI SINI" readonly
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow uppercase bg-gray-100 font-semibold cursor-not-allowed">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dynamic Component Steps (A-K) -->
+                <div id="dynamic-steps-container"></div>
+
+                <!-- Footer Navigation -->
+                <div class="mt-10 pt-4 border-t border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4">
+                    <button type="button" id="btn-prev" class="hidden w-full md:w-auto px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium">
+                        &larr; Kembali
+                    </button>
+                    
+                    <div class="flex-grow"></div>
+                    
+                    <div class="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+                        <button type="button" id="btn-quick-save" class="hidden flex items-center justify-center bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-8 rounded-lg shadow-md transition-all">
+                            <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                            </svg>
+                            <span>Simpan Kemajuan</span>
+                            <div id="quickSaveLoader" class="loader-small ml-3 hidden border-white border-t-transparent"></div>
+                        </button>
+
+                        <button type="button" id="btn-next" class="w-full md:w-auto px-8 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-md font-bold">
+                            Seterusnya &rarr;
+                        </button>
+
+                        <button type="submit" id="btn-submit" class="hidden flex items-center justify-center bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-8 rounded-lg shadow-md transition-all">
+                            <span id="submitBtnText">Hantar Penilaian Akhir</span>
+                            <div id="submitBtnLoader" class="loader ml-3 hidden border-white border-t-transparent"></div>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </section>
+
+        <!-- SECTION: REPORT -->
+        <section id="section-report" class="hidden bg-white rounded-xl shadow-lg border border-gray-100 p-6 md:p-8">
+            <div class="mb-6 border-b border-gray-200 pb-4">
+                <h2 class="text-2xl font-bold text-gray-800">Pelaporan Bimbingan Komprehensif</h2>
+                <p class="text-sm text-gray-500 mt-1">Sila jana pelaporan untuk melihat carta dan rumusan admin.</p>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-4 mb-6 relative">
+                <div class="flex-grow relative">
+                    <input type="text" id="searchKodSekolahInput" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 uppercase font-bold bg-white text-blue-800" placeholder="Taip Kod / Nama Sekolah Untuk Mencari...">
+                    <ul id="searchKodSekolahSuggestions" class="absolute z-10 w-full bg-white border border-gray-300 rounded-lg mt-1 max-h-48 overflow-y-auto hidden shadow-lg"></ul>
+                </div>
+                <button type="button" id="searchBtn" class="flex-shrink-0 flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg shadow-md transition-all">
+                    <span id="searchBtnText">Jana Pelaporan</span>
+                    <div id="searchBtnLoader" class="loader ml-3 hidden border-white border-t-transparent"></div>
+                </button>
+            </div>
+
+            <!-- Report Results Area -->
+            <div id="reportContainer" class="hidden">
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-5 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+                    <div class="w-full md:w-2/3">
+                        <h3 id="paparanNamaSekolah" class="text-xl font-bold text-gray-800 uppercase leading-tight"></h3>
+                        <div class="flex items-center gap-3 mt-1">
+                            <span id="paparanKodSekolah" class="text-xs bg-blue-600 text-white px-2 py-0.5 rounded font-bold"></span>
+                            <span id="paparanTimestamp" class="text-xs text-gray-500 italic"></span>
+                        </div>
+                    </div>
+                    <div class="w-full md:w-1/3">
+                        <label class="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">Tapis Komponen</label>
+                        <select id="filterKomponen" class="w-full px-3 py-2 border border-blue-300 bg-white rounded-lg focus:ring-2 focus:ring-blue-500 font-bold text-blue-800 cursor-pointer">
+                        </select>
+                    </div>
+                </div>
+
+                <div class="w-full h-[500px] relative border border-gray-100 rounded-xl p-4 shadow-inner bg-white mb-8">
+                    <canvas id="barChart"></canvas>
+                </div>
+
+                <!-- MODUL RUMUSAN (ADMIN ONLY UPDATE) -->
+                <div class="bg-white border-2 border-blue-100 rounded-2xl overflow-hidden shadow-lg">
+                    <div class="bg-blue-600 px-6 py-3 flex justify-between items-center">
+                        <h3 class="text-white font-bold flex items-center">
+                            <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                            RUMUSAN BIMBINGAN (ADMIN)
+                        </h3>
+                        <span class="text-[10px] bg-white text-blue-700 px-2 py-1 rounded-full font-black uppercase">Pihak Berkuasa Sahaja</span>
+                    </div>
+                    <div class="p-6">
+                        <textarea id="rumusanTeks" rows="6" placeholder="Admin belum memasukkan rumusan untuk sekolah ini..."
+                                  class="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl text-gray-700 focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-sm leading-relaxed"></textarea>
+                        
+                        <div class="mt-4 flex flex-col md:flex-row gap-4 items-center justify-between">
+                            <p class="text-xs text-gray-500 italic flex items-center">
+                                <svg class="w-4 h-4 mr-1 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                                </svg>
+                                Hanya Admin PPD (hairoldinrahim@moe.gov.my) boleh mengemaskini rumusan ini.
+                            </p>
+                            <button type="button" id="btnRumusanAdmin" class="w-full md:w-auto px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition-all flex items-center justify-center">
+                                <span>Kemas Kini Rumusan</span>
+                                <div id="adminLoader" class="loader-small border-white ml-2 hidden"></div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="emptyStateContainer" class="py-16 flex flex-col items-center justify-center text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
+                <svg class="w-16 h-16 mb-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                <p class="text-lg font-medium text-gray-500">Tiada data dipaparkan. Sila cari sekolah dan klik 'Jana Pelaporan'.</p>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ADMIN PASSWORD MODAL -->
+    <div id="modalAdminAuth" class="fixed inset-0 bg-black/60 z-[100] hidden flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 transform transition-all">
+            <h3 class="text-lg font-bold text-gray-800 mb-2">Pengesahan Admin PPD</h3>
+            <p class="text-sm text-gray-500 mb-6">Log masuk diperlukan untuk menyimpan rumusan.</p>
+            
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">E-mel MOE</label>
+                    <input type="email" id="inputEmailAdmin" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="hairoldinrahim@moe.gov.my" value="hairoldinrahim@moe.gov.my" readonly>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Kata Laluan</label>
+                    <input type="password" id="inputPassAdmin" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Masukkan kata laluan">
+                </div>
+            </div>
+
+            <div class="flex gap-3">
+                <button type="button" id="btnBatalAdmin" class="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-gray-500 font-bold hover:bg-gray-50">Batal</button>
+                <button type="button" id="btnSahkanAdmin" class="flex-1 flex justify-center items-center px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700">
+                    <span id="teksBtnSahkanAdmin">Sahkan</span>
+                    <div id="loaderAdminModal" class="loader-small border-white ml-2 hidden"></div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-white border-t border-gray-200 mt-auto">
+        <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
+            <p class="text-center text-sm text-gray-500 font-medium tracking-wide">
+                &copy; 2026 Program Tuntas V7. Sistem Bimbingan Pintar (Supabase Edition).
+            </p>
+        </div>
+    </footer>
+
+    <!-- Scripts Modular -->
+    <script src="js/config.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
