@@ -1,8 +1,9 @@
 /**
  * ============================================================================
- * BIMBINGAN PROGRAM TUNTAS - LOGIK APLIKASI (UI & EVENTS) V7
+ * BIMBINGAN PROGRAM TUNTAS - LOGIK APLIKASI (UI & EVENTS) V8
  * Pengarang: 0.1% Elite Senior Software Architect
  * Keterangan: Mengawal manipulasi DOM, navigasi, validasi, carta, dan sesi admin.
+ * Kemaskini V8: Sokongan 48 Item Bimbingan.
  * ============================================================================
  */
 
@@ -361,7 +362,8 @@ async function semakDataTerdahuluBorang(kodSekolah) {
                 document.getElementById('namaSekolah').value = respon.data.nama_sekolah;
             }
             kosongkanSemuaRadio();
-            for (let i = 1; i <= 47; i++) {
+            // V8 Update: Loop hingga 48
+            for (let i = 1; i <= 48; i++) {
                 let namaItem = 'item' + i;
                 let skor = respon.data[namaItem];
                 if (skor && skor > 0) {
@@ -546,7 +548,12 @@ function paparAntaramukaPelaporan() {
 }
 
 function wrapTextChart(text, maxLength) {
-    const words = text.split(' ');
+    // Kita bersihkan tag HTML sebelum proses word wrap untuk elak ralat dalam carta
+    const div = document.createElement("div");
+    div.innerHTML = text;
+    const plainText = div.textContent || div.innerText || "";
+    
+    const words = plainText.split(' ');
     const lines = [];
     let currentLine = '';
     words.forEach(word => {

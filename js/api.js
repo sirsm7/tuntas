@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * BIMBINGAN PROGRAM TUNTAS - LAPISAN API SUPABASE (V7)
+ * BIMBINGAN PROGRAM TUNTAS - LAPISAN API SUPABASE (V8)
  * Pengarang: 0.1% Elite Senior Software Architect
  * Keterangan: Menguruskan semua komunikasi data (CRUD) dengan Supabase.
  * ============================================================================
@@ -81,8 +81,8 @@ const API = {
                 // Operasi upsert akan mengekalkan lajur yang tidak dinyatakan jika kita hanya mengemas kini.
             };
 
-            // Memasukkan skor item1 hingga item47 secara dinamik
-            for (let i = 1; i <= 47; i++) {
+            // Memasukkan skor item1 hingga item48 secara dinamik (V8 Update)
+            for (let i = 1; i <= 48; i++) {
                 let namaItem = 'item' + i;
                 simpanan[namaItem] = parseInt(payloadData[namaItem], 10) || 0;
             }
@@ -149,7 +149,8 @@ const API = {
                 scores: {}
             };
 
-            for (let i = 1; i <= 47; i++) {
+            // V8 Update: Loop hingga 48
+            for (let i = 1; i <= 48; i++) {
                 formatLaporan.scores['item' + i] = data['item' + i] || 0;
             }
 
